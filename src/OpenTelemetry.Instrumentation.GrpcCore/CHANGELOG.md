@@ -4,6 +4,8 @@
 
 * Make the context propagation extraction case insensitive.
   ([#483](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/483))
+* Update OpenTelemetry.Api to 1.6.0.
+  ([#1344](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1344))
 
 ## 1.0.0-beta.5
 
@@ -26,7 +28,7 @@
 
 ## 1.0.0-beta3
 
-* Updated OTel SDK package version to 1.1.0-beta1
+* Updated OpenTelemetry SDK package version to 1.1.0-beta1
   ([#100](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/100))
 
 * Do NOT mutate incoming call headers, copy them before propagation

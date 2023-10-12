@@ -43,7 +43,7 @@ public class QuartzInstrumentationOptions
     /// <para>object: the raw object from which additional information can be extracted to enrich the activity.
     /// The type of this object depends on the event, which is given by the above parameter.</para>
     /// </remarks>
-    public Action<Activity, string, object> Enrich { get; set; }
+    public Action<Activity, string, object>? Enrich { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether the exception will be recorded as ActivityEvent or not.
@@ -56,5 +56,7 @@ public class QuartzInstrumentationOptions
     /// <summary>
     /// Gets or sets traced operations set.
     /// </summary>
+#pragma warning disable CA2227 // Collection properties should be read only
     public HashSet<string> TracedOperations { get; set; } = new(DefaultTracedOperations);
+#pragma warning restore CA2227 // Collection properties should be read only
 }

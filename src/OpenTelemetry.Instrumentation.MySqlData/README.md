@@ -1,12 +1,24 @@
 # MySqlData Instrumentation for OpenTelemetry
 
-[![NuGet](https://img.shields.io/nuget/v/OpenTelemetry.Instrumentation.MySqlData.svg)](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.MySqlData)
-[![NuGet](https://img.shields.io/nuget/dt/OpenTelemetry.Instrumentation.MySqlData.svg)](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.MySqlData)
+[![NuGet version badge](https://img.shields.io/nuget/v/OpenTelemetry.Instrumentation.MySqlData)](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.MySqlData)
+[![NuGet download count badge](https://img.shields.io/nuget/dt/OpenTelemetry.Instrumentation.MySqlData)](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.MySqlData)
 
 This is an
 [Instrumentation Library](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/glossary.md#instrumentation-library),
 which instruments [MySql.Data](https://www.nuget.org/packages/MySql.Data)
 and collects telemetry about database operations.
+
+## Deprecated
+
+> **NOTE that this only works with Mysql.Data v8.0.32 (and earlier, where supported)**.
+> Mysql.Data v8.1.0 and later have built-in direct support for Open Telemetry
+> via `ActivitySource`.
+
+To instrument Mysql.Data v8.1.0+ you need to configure the OpenTelemetry SDK
+to listen to the `ActivitySource` used by the library by calling
+`AddSource("connector-net")` on the `TracerProviderBuilder`. Alternatively,
+you can add the nuget package [MySQL.Data.OpenTelemetry](https://www.nuget.org/packages/MySql.Data.OpenTelemetry)
+and call extension method `AddConnectorNet()` on the `TracerProviderBuilder`.
 
 ## Steps to enable OpenTelemetry.Instrumentation.MySqlData
 
@@ -52,7 +64,8 @@ the `ConfigureServices` of your `Startup` class. Refer to documentation for
 For an ASP.NET application, adding instrumentation is typically done in the
 `Global.asax.cs`. Refer to documentation for [OpenTelemetry.Instrumentation.AspNet](../OpenTelemetry.Instrumentation.AspNet/README.md).
 
-Note, If you are using `Mysql.Data` 8.0.31 or later, please add
+> **Note**
+> If you are using `Mysql.Data` 8.0.31 or later, please add
 option `Logging=true` in your connection string to enable tracing.
 See issue #691 for details.
 

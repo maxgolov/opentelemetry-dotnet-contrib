@@ -31,8 +31,8 @@ namespace Examples.AspNet;
 public class WebApiApplication : HttpApplication
 #pragma warning restore SA1649 // File name should match first type name
 {
-    private IDisposable tracerProvider;
-    private IDisposable meterProvider;
+    private IDisposable? tracerProvider;
+    private IDisposable? meterProvider;
 
     protected void Application_Start()
     {
@@ -40,22 +40,15 @@ public class WebApiApplication : HttpApplication
              .AddAspNetInstrumentation()
              .AddHttpClientInstrumentation();
 
-        switch (ConfigurationManager.AppSettings["UseExporter"].ToLowerInvariant())
+        switch (ConfigurationManager.AppSettings["UseExporter"].ToUpperInvariant())
         {
-            case "jaeger":
-                builder.AddJaegerExporter(jaegerOptions =>
-                 {
-                     jaegerOptions.AgentHost = ConfigurationManager.AppSettings["JaegerHost"];
-                     jaegerOptions.AgentPort = int.Parse(ConfigurationManager.AppSettings["JaegerPort"]);
-                 });
-                break;
-            case "zipkin":
+            case "ZIPKIN":
                 builder.AddZipkinExporter(zipkinOptions =>
                 {
                     zipkinOptions.Endpoint = new Uri(ConfigurationManager.AppSettings["ZipkinEndpoint"]);
                 });
                 break;
-            case "otlp":
+            case "OTLP":
                 builder.AddOtlpExporter(otlpOptions =>
                     {
                         otlpOptions.Endpoint = new Uri(ConfigurationManager.AppSettings["OtlpEndpoint"]);
@@ -75,16 +68,16 @@ public class WebApiApplication : HttpApplication
         var meterBuilder = Sdk.CreateMeterProviderBuilder()
              .AddAspNetInstrumentation();
 
-        switch (ConfigurationManager.AppSettings["UseMetricsExporter"].ToLowerInvariant())
+        switch (ConfigurationManager.AppSettings["UseMetricsExporter"].ToUpperInvariant())
         {
-            case "otlp":
+            case "OTLP":
                 meterBuilder.AddOtlpExporter(otlpOptions =>
                 {
                     otlpOptions.Endpoint = new Uri(ConfigurationManager.AppSettings["OtlpEndpoint"]);
                 });
                 break;
-            case "prometheus":
-                meterBuilder.AddPrometheusExporter();
+            case "PROMETHEUS":
+                meterBuilder.AddPrometheusHttpListener();
                 break;
             default:
                 meterBuilder.AddConsoleExporter((exporterOptions, metricReaderOptions) =>

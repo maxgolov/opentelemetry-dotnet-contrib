@@ -15,6 +15,7 @@
 // </copyright>
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -22,6 +23,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Amazon.Lambda.Core;
 using OpenTelemetry.Instrumentation.AWSLambda.Implementation;
+using OpenTelemetry.Internal;
 using OpenTelemetry.Trace;
 
 namespace OpenTelemetry.Instrumentation.AWSLambda;
@@ -63,12 +65,14 @@ public static class AWSLambdaWrapper
     /// </param>
     /// <returns>Instance of output result.</returns>
     public static TResult Trace<TInput, TResult>(
-        TracerProvider tracerProvider,
+        TracerProvider? tracerProvider,
         Func<TInput, ILambdaContext, TResult> lambdaHandler,
         TInput input,
         ILambdaContext context,
         ActivityContext parentContext = default)
     {
+        Guard.ThrowIfNull(lambdaHandler);
+
         return TraceInternal(tracerProvider, lambdaHandler, input, context, parentContext);
     }
 
@@ -87,18 +91,21 @@ public static class AWSLambdaWrapper
     /// unless X-Ray propagation is disabled in the configuration for this wrapper.
     /// </param>
     public static void Trace<TInput>(
-        TracerProvider tracerProvider,
+        TracerProvider? tracerProvider,
         Action<TInput, ILambdaContext> lambdaHandler,
         TInput input,
         ILambdaContext context,
         ActivityContext parentContext = default)
     {
-        Func<TInput, ILambdaContext, object> func = (input, context) =>
+        Guard.ThrowIfNull(lambdaHandler);
+
+        object? Handler(TInput input, ILambdaContext context)
         {
             lambdaHandler(input, context);
             return null;
-        };
-        TraceInternal(tracerProvider, func, input, context, parentContext);
+        }
+
+        TraceInternal(tracerProvider, Handler, input, context, parentContext);
     }
 
     /// <summary>
@@ -117,18 +124,21 @@ public static class AWSLambdaWrapper
     /// </param>
     /// <returns>Task.</returns>
     public static Task TraceAsync<TInput>(
-        TracerProvider tracerProvider,
+        TracerProvider? tracerProvider,
         Func<TInput, ILambdaContext, Task> lambdaHandler,
         TInput input,
         ILambdaContext context,
         ActivityContext parentContext = default)
     {
-        Func<TInput, ILambdaContext, Task<object>> func = async (input, context) =>
+        Guard.ThrowIfNull(lambdaHandler);
+
+        async Task<object?> Handler(TInput input, ILambdaContext context)
         {
-            await lambdaHandler(input, context);
+            await lambdaHandler(input, context).ConfigureAwait(false);
             return null;
-        };
-        return TraceInternalAsync(tracerProvider, func, input, context, parentContext);
+        }
+
+        return TraceInternalAsync(tracerProvider, Handler, input, context, parentContext);
     }
 
     /// <summary>
@@ -148,22 +158,25 @@ public static class AWSLambdaWrapper
     /// </param>
     /// <returns>Task of result.</returns>
     public static Task<TResult> TraceAsync<TInput, TResult>(
-        TracerProvider tracerProvider,
+        TracerProvider? tracerProvider,
         Func<TInput, ILambdaContext, Task<TResult>> lambdaHandler,
         TInput input,
         ILambdaContext context,
         ActivityContext parentContext = default)
     {
+        Guard.ThrowIfNull(lambdaHandler);
+
         return TraceInternalAsync(tracerProvider, lambdaHandler, input, context, parentContext);
     }
 
 #pragma warning restore RS0026 // Do not add multiple public overloads with optional parameters
 
-    internal static Activity OnFunctionStart<TInput>(TInput input, ILambdaContext context, ActivityContext parentContext = default)
+    internal static Activity? OnFunctionStart<TInput>(TInput input, ILambdaContext context, ActivityContext parentContext = default)
     {
+        IEnumerable<ActivityLink>? links = null;
         if (parentContext == default)
         {
-            parentContext = AWSLambdaUtils.ExtractParentContext(input);
+            (parentContext, links) = AWSLambdaUtils.ExtractParentContext(input);
             if (parentContext == default && !DisableAwsXRayContextExtraction)
             {
                 parentContext = AWSLambdaUtils.GetXRayParentContext();
@@ -175,23 +188,20 @@ public static class AWSLambdaWrapper
 
         // We assume that functionTags and httpTags have no intersection.
         var activityName = AWSLambdaUtils.GetFunctionName(context) ?? "AWS Lambda Invoke";
-        var activity = AWSLambdaActivitySource.StartActivity(activityName, ActivityKind.Server, parentContext, functionTags.Concat(httpTags));
+        var activity = AWSLambdaActivitySource.StartActivity(activityName, ActivityKind.Server, parentContext, functionTags.Concat(httpTags)!, links);
 
         return activity;
     }
 
-    private static void OnFunctionStop(Activity activity, TracerProvider tracerProvider)
+    private static void OnFunctionStop(Activity? activity, TracerProvider? tracerProvider)
     {
-        if (activity != null)
-        {
-            activity.Stop();
-        }
+        activity?.Stop();
 
         // force flush before function quit in case of Lambda freeze.
         tracerProvider?.ForceFlush();
     }
 
-    private static void OnException(Activity activity, Exception exception)
+    private static void OnException(Activity? activity, Exception exception)
     {
         if (activity != null)
         {
@@ -204,12 +214,14 @@ public static class AWSLambdaWrapper
     }
 
     private static TResult TraceInternal<TInput, TResult>(
-        TracerProvider tracerProvider,
+        TracerProvider? tracerProvider,
         Func<TInput, ILambdaContext, TResult> handler,
         TInput input,
         ILambdaContext context,
         ActivityContext parentContext = default)
     {
+        Guard.ThrowIfNull(context);
+
         var activity = OnFunctionStart(input, context, parentContext);
         try
         {
@@ -230,16 +242,18 @@ public static class AWSLambdaWrapper
     }
 
     private static async Task<TResult> TraceInternalAsync<TInput, TResult>(
-        TracerProvider tracerProvider,
+        TracerProvider? tracerProvider,
         Func<TInput, ILambdaContext, Task<TResult>> handlerAsync,
         TInput input,
         ILambdaContext context,
         ActivityContext parentContext = default)
     {
+        Guard.ThrowIfNull(context);
+
         var activity = OnFunctionStart(input, context, parentContext);
         try
         {
-            var result = await handlerAsync(input, context);
+            var result = await handlerAsync(input, context).ConfigureAwait(false);
             AWSLambdaHttpUtils.SetHttpTagsFromResult(activity, result);
             return result;
         }

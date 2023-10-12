@@ -17,7 +17,6 @@
 using System;
 using OpenTelemetry.Instrumentation.AWSLambda.Implementation;
 using OpenTelemetry.Internal;
-using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 namespace OpenTelemetry.Instrumentation.AWSLambda;
@@ -31,11 +30,19 @@ public static class TracerProviderBuilderExtensions
     /// Add AWS Lambda configurations.
     /// </summary>
     /// <param name="builder"><see cref="TracerProviderBuilder"/> being configured.</param>
+    /// <returns>The instance of <see cref="TracerProviderBuilder"/> to chain the calls.</returns>
+    public static TracerProviderBuilder AddAWSLambdaConfigurations(this TracerProviderBuilder builder) =>
+        AddAWSLambdaConfigurations(builder, configure: null);
+
+    /// <summary>
+    /// Add AWS Lambda configurations.
+    /// </summary>
+    /// <param name="builder"><see cref="TracerProviderBuilder"/> being configured.</param>
     /// <param name="configure">AWS lambda instrumentation options.</param>
     /// <returns>The instance of <see cref="TracerProviderBuilder"/> to chain the calls.</returns>
     public static TracerProviderBuilder AddAWSLambdaConfigurations(
         this TracerProviderBuilder builder,
-        Action<AWSLambdaInstrumentationOptions> configure = null)
+        Action<AWSLambdaInstrumentationOptions>? configure)
     {
         Guard.ThrowIfNull(builder);
 
@@ -43,13 +50,10 @@ public static class TracerProviderBuilderExtensions
         configure?.Invoke(options);
 
         AWSLambdaWrapper.DisableAwsXRayContextExtraction = options.DisableAwsXRayContextExtraction;
+        AWSMessagingUtils.SetParentFromMessageBatch = options.SetParentFromBatch;
 
         builder.AddSource(AWSLambdaWrapper.ActivitySourceName);
-        builder.SetResourceBuilder(ResourceBuilder
-            .CreateEmpty()
-            .AddService(AWSLambdaUtils.GetFunctionName(), null, null, false)
-            .AddTelemetrySdk()
-            .AddAttributes(AWSLambdaResourceDetector.Detect()));
+        builder.ConfigureResource(x => x.AddDetector(new AWSLambdaResourceDetector()));
 
         return builder;
     }

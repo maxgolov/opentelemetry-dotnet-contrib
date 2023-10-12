@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+      <TargetFrameworks>net7.0;net6.0</TargetFrameworks>
+      <TargetFrameworks Condition="$(OS) == 'Windows_NT'">$(TargetFrameworks);net462</TargetFrameworks>
+    </PropertyGroup>
+
+
+  <ItemGroup>
+    <PackageReference Include="Moq" Version="$(MoqPkgVer)" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="$(OpenTelemetryCoreLatestVersion)" />
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" Version="$(OpenTelemetryExporterInMemoryPkgVer)" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="$(MicrosoftExtensionsOptionsPkgVer)" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <Compile Include="$(RepoRoot)\test\OpenTelemetry.Contrib.Tests.Shared\SkipUnlessEnvVarFoundFactAttribute.cs" Link="Implementation\SkipUnlessEnvVarFoundFactAttribute.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)\src\OpenTelemetry.Instrumentation.Cassandra\OpenTelemetry.Instrumentation.Cassandra.csproj" />
+  </ItemGroup>
+</Project>

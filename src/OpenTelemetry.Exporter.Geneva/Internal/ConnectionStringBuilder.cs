@@ -31,7 +31,7 @@ internal enum TransportProtocol
     Unspecified,
 }
 
-internal class ConnectionStringBuilder
+internal sealed class ConnectionStringBuilder
 {
     private readonly Dictionary<string, string> _parts = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -132,12 +132,29 @@ internal class ConnectionStringBuilder
         }
     }
 
+    /// <summary>
+    /// Replace first charater of string if it matches with <paramref name="oldChar"/> with <paramref name="newChar"/>.
+    /// </summary>
+    /// <param name="str">String to be updated.</param>
+    /// <param name="oldChar">Old character to be replaced.</param>
+    /// <param name="newChar">New character to be replaced with.</param>
+    /// <returns>Updated string.</returns>
+    internal static string ReplaceFirstChar(string str, char oldChar, char newChar)
+    {
+        if (str.Length > 0 && str[0] == oldChar)
+        {
+            return $"{newChar}{str.Substring(1)}";
+        }
+
+        return str;
+    }
+
     public string ParseUnixDomainSocketPath()
     {
         try
         {
             var endpoint = new Uri(this.Endpoint);
-            return endpoint.AbsolutePath;
+            return ReplaceFirstChar(endpoint.AbsolutePath, '@', '\0');
         }
         catch (UriFormatException ex)
         {
@@ -228,6 +245,20 @@ internal class ConnectionStringBuilder
     {
         get => this.ThrowIfNotExists<string>(nameof(this.Namespace));
         set => this._parts[nameof(this.Namespace)] = value;
+    }
+
+    public bool DisableMetricNameValidation
+    {
+        get
+        {
+            if (!this._parts.TryGetValue(nameof(this.DisableMetricNameValidation), out var value))
+            {
+                return false;
+            }
+
+            return string.Equals(bool.TrueString, value, StringComparison.OrdinalIgnoreCase);
+        }
+        set => this._parts[nameof(this.DisableMetricNameValidation)] = value ? bool.TrueString : bool.FalseString;
     }
 
     private T ThrowIfNotExists<T>(string name)

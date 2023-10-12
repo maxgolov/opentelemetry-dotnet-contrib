@@ -23,12 +23,13 @@ internal class EntityFrameworkInstrumentation : IDisposable
 {
     private readonly DiagnosticSourceSubscriber diagnosticSourceSubscriber;
 
-    public EntityFrameworkInstrumentation(EntityFrameworkInstrumentationOptions options = null)
+    public EntityFrameworkInstrumentation(EntityFrameworkInstrumentationOptions options)
     {
         this.diagnosticSourceSubscriber = new DiagnosticSourceSubscriber(
             name => new EntityFrameworkDiagnosticListener(name, options),
             listener => listener.Name == EntityFrameworkDiagnosticListener.DiagnosticSourceName,
-            null);
+            null,
+            EntityFrameworkInstrumentationEventSource.Log.UnknownErrorProcessingEvent);
         this.diagnosticSourceSubscriber.Subscribe();
     }
 

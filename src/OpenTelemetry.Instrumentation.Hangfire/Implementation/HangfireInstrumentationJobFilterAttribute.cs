@@ -15,24 +15,24 @@
 // </copyright>
 
 using System;
-using Hangfire;
-
-namespace OpenTelemetry.Instrumentation.Hangfire.Implementation;
-
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using global::Hangfire.Client;
-using global::Hangfire.Common;
-using global::Hangfire.Server;
+using Hangfire.Client;
+using Hangfire.Common;
+using Hangfire.Server;
 using OpenTelemetry.Context.Propagation;
 using OpenTelemetry.Trace;
 
-internal class HangfireInstrumentationJobFilterAttribute : JobFilterAttribute, IServerFilter, IClientFilter
+namespace OpenTelemetry.Instrumentation.Hangfire.Implementation;
+
+internal sealed class HangfireInstrumentationJobFilterAttribute : JobFilterAttribute, IServerFilter, IClientFilter
 {
     private readonly HangfireInstrumentationOptions options;
 
+#pragma warning disable CA1019 // Define accessors for attribute arguments
     public HangfireInstrumentationJobFilterAttribute(HangfireInstrumentationOptions options)
+#pragma warning restore CA1019 // Define accessors for attribute arguments
     {
         this.options = options;
     }
@@ -59,8 +59,7 @@ internal class HangfireInstrumentationJobFilterAttribute : JobFilterAttribute, I
 
         if (activity != null)
         {
-            Func<BackgroundJob, string> displayNameFunc =
-                this.options.DisplayNameFunc ?? HangfireInstrumentation.DefaultDisplayNameFunc;
+            var displayNameFunc = this.options.DisplayNameFunc;
 
             activity.DisplayName = displayNameFunc(performingContext.BackgroundJob);
 
@@ -123,10 +122,10 @@ internal class HangfireInstrumentationJobFilterAttribute : JobFilterAttribute, I
 
     private static IEnumerable<string> ExtractActivityProperties(Dictionary<string, string> telemetryData, string key)
     {
-        return telemetryData.ContainsKey(key) ? new[] { telemetryData[key] } : Enumerable.Empty<string>();
+        return telemetryData.TryGetValue(key, out var value) ? new[] { value } : Enumerable.Empty<string>();
     }
 
-    private void SetStatusAndRecordException(Activity activity, System.Exception exception)
+    private void SetStatusAndRecordException(Activity activity, Exception exception)
     {
         activity.SetStatus(ActivityStatusCode.Error, exception.Message);
 

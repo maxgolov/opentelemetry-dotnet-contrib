@@ -25,6 +25,7 @@ using Xunit;
 
 namespace OpenTelemetry.Instrumentation.AWSLambda.Tests.Implementation;
 
+[Collection("TracerProviderDependent")]
 public class AWSLambdaHttpUtilsTests
 {
     [Fact]
@@ -37,13 +38,13 @@ public class AWSLambdaHttpUtilsTests
                 { "X-Forwarded-Proto", new List<string> { "https" } },
                 { "Host", new List<string> { "localhost:1234" } },
             },
-            HttpMethod = "GET",
             MultiValueQueryStringParameters = new Dictionary<string, IList<string>>
             {
                 { "q1", new[] { "value1" } },
             },
             RequestContext = new APIGatewayProxyRequest.ProxyRequestContext
             {
+                HttpMethod = "GET",
                 Path = "/path/test",
             },
         };
@@ -57,6 +58,30 @@ public class AWSLambdaHttpUtilsTests
             { "net.host.name", "localhost" },
             { "net.host.port", 1234 },
             { "http.method", "GET" },
+        };
+
+        AssertTags(expectedTags, actualTags);
+    }
+
+    [Fact]
+    public void GetHttpTags_APIGatewayProxyRequestWithEmptyContext_ReturnsTagsFromRequest()
+    {
+        var request = new APIGatewayProxyRequest
+        {
+            MultiValueQueryStringParameters = new Dictionary<string, IList<string>>
+            {
+                { "q1", new[] { "value1" } },
+            },
+            HttpMethod = "POST",
+            Path = "/path/test",
+        };
+
+        var actualTags = AWSLambdaHttpUtils.GetHttpTags(request);
+
+        var expectedTags = new Dictionary<string, object>
+        {
+            { "http.method", "POST" },
+            { "http.target", "/path/test?q1=value1" },
         };
 
         AssertTags(expectedTags, actualTags);
@@ -170,7 +195,12 @@ public class AWSLambdaHttpUtilsTests
         {
             { "http.status_code", 200 },
         };
-        AssertTags(expectedTags, activity.TagObjects);
+
+        Assert.NotNull(activity);
+
+        var actualTags = activity.TagObjects
+            .Select(kvp => new KeyValuePair<string, object>(kvp.Key, kvp.Value!));
+        AssertTags(expectedTags, actualTags);
     }
 
     [Fact]
@@ -196,7 +226,11 @@ public class AWSLambdaHttpUtilsTests
         {
             { "http.status_code", 200 },
         };
-        AssertTags(expectedTags, activity.TagObjects);
+
+        var actualTags = activity?.TagObjects
+            .Select(kvp => new KeyValuePair<string, object>(kvp.Key, kvp.Value ?? new object()));
+
+        AssertTags(expectedTags, actualTags);
     }
 
     [Theory]
@@ -255,14 +289,14 @@ public class AWSLambdaHttpUtilsTests
         Assert.Equal(expectedQueryString, queryString);
     }
 
-    private static void AssertTags<TActualValue>(IReadOnlyDictionary<string, object> expectedTags, IEnumerable<KeyValuePair<string, TActualValue>> actualTags)
+    private static void AssertTags<TActualValue>(IReadOnlyDictionary<string, object> expectedTags, IEnumerable<KeyValuePair<string, TActualValue>>? actualTags)
         where TActualValue : class
     {
         Assert.NotNull(actualTags);
         Assert.Equal(expectedTags.Count, actualTags.Count());
         foreach (var tag in expectedTags)
         {
-            Assert.Contains(new KeyValuePair<string, TActualValue>(tag.Key, tag.Value as TActualValue), actualTags);
+            Assert.Contains(new KeyValuePair<string, TActualValue>(tag.Key, (TActualValue)tag.Value), actualTags);
         }
     }
 }

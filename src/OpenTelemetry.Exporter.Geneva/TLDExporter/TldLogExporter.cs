@@ -187,10 +187,11 @@ internal sealed class TldLogExporter : TldExporter, IDisposable
     internal void SerializeLogRecord(LogRecord logRecord)
     {
         IReadOnlyList<KeyValuePair<string, object>> listKvp;
-        if (logRecord.State == null)
+
+        // `LogRecord.State` and `LogRecord.StateValues` were marked Obsolete in https://github.com/open-telemetry/opentelemetry-dotnet/pull/4334
+#pragma warning disable 0618
+        if (logRecord.StateValues != null)
         {
-            // When State is null, OTel SDK guarantees StateValues is populated
-            // TODO: Debug.Assert?
             listKvp = logRecord.StateValues;
         }
         else
@@ -198,6 +199,7 @@ internal sealed class TldLogExporter : TldExporter, IDisposable
             // Attempt to see if State could be ROL_KVP.
             listKvp = logRecord.State as IReadOnlyList<KeyValuePair<string, object>>;
         }
+#pragma warning restore 0618
 
         // Structured log.
         // 2 scenarios.
@@ -257,7 +259,7 @@ internal sealed class TldLogExporter : TldExporter, IDisposable
 
         if (logRecord.SpanId != default)
         {
-            eb.AddCountedString("ext_dt_spanId", logRecord.TraceId.ToHexString());
+            eb.AddCountedString("ext_dt_spanId", logRecord.SpanId.ToHexString());
             partAFieldsCount++;
         }
 
@@ -278,7 +280,7 @@ internal sealed class TldLogExporter : TldExporter, IDisposable
                 // before running out of limit instead of STRING_SIZE_LIMIT_CHAR_COUNT.
                 // 2. Trim smarter, by trimming the middle of stack, an
                 // keep top and bottom.
-                var exceptionStack = ToInvariantString(logRecord.Exception);
+                var exceptionStack = logRecord.Exception.ToInvariantString();
                 eb.AddCountedAnsiString("ext_ex_stack", exceptionStack, Encoding.UTF8, 0, Math.Min(exceptionStack.Length, StringLengthLimit));
                 partAFieldsCount++;
             }
@@ -291,13 +293,25 @@ internal sealed class TldLogExporter : TldExporter, IDisposable
         byte partBFieldsCount = 4;
         var partBFieldsCountPatch = eb.AddStruct("PartB", partBFieldsCount); // We at least have three fields in Part B: _typeName, severityText, severityNumber, name
         eb.AddCountedString("_typeName", "Log");
+
+        // `LogRecord.LogLevel` was marked Obsolete in https://github.com/open-telemetry/opentelemetry-dotnet/pull/4568
+#pragma warning disable 0618
         var logLevel = logRecord.LogLevel;
+#pragma warning restore 0618
+
         eb.AddCountedString("severityText", logLevels[(int)logLevel]);
         eb.AddUInt8("severityNumber", GetSeverityNumber(logLevel));
-        eb.AddCountedAnsiString("name", categoryName, Encoding.UTF8);
+
+        var eventId = logRecord.EventId;
+        if (eventId != default)
+        {
+            eb.AddInt32("eventId", eventId.Id);
+            partBFieldsCount++;
+        }
 
         byte hasEnvProperties = 0;
         bool bodyPopulated = false;
+        bool namePopulated = false;
 
         byte partCFieldsCountFromState = 0;
         var kvpArrayForPartCFields = partCFields.Value;
@@ -328,8 +342,20 @@ internal sealed class TldLogExporter : TldExporter, IDisposable
                 if (entry.Value != null)
                 {
                     // null is not supported.
-                    kvpArrayForPartCFields[partCFieldsCountFromState] = new(entry.Key, entry.Value);
-                    partCFieldsCountFromState++;
+                    if (string.Equals(entry.Key, "name", StringComparison.Ordinal))
+                    {
+                        if (entry.Value is string nameValue)
+                        {
+                            // name must be string according to Part B in Common Schema. Skip serializing this field otherwise
+                            eb.AddCountedAnsiString("name", nameValue, Encoding.UTF8);
+                            namePopulated = true;
+                        }
+                    }
+                    else
+                    {
+                        kvpArrayForPartCFields[partCFieldsCountFromState] = new(entry.Key, entry.Value);
+                        partCFieldsCountFromState++;
+                    }
                 }
             }
             else
@@ -350,6 +376,11 @@ internal sealed class TldLogExporter : TldExporter, IDisposable
                 // TODO: This could lead to unbounded memory usage.
                 envPropertiesList.Add(new(entry.Key, entry.Value));
             }
+        }
+
+        if (!namePopulated)
+        {
+            eb.AddCountedAnsiString("name", categoryName, Encoding.UTF8);
         }
 
         if (!bodyPopulated && logRecord.FormattedMessage != null)
@@ -393,13 +424,6 @@ internal sealed class TldLogExporter : TldExporter, IDisposable
             // named "env_properties".
             var serializedEnvPropertiesStringAsBytes = JsonSerializer.SerializeKeyValuePairsListAsBytes(envPropertiesList, out var count);
             eb.AddCountedAnsiString("env_properties", serializedEnvPropertiesStringAsBytes, 0, count);
-        }
-
-        var eventId = logRecord.EventId;
-        if (eventId != default)
-        {
-            eb.AddInt32("eventId", eventId.Id);
-            partCFieldsCount++;
         }
 
         eb.SetStructFieldCount(partCFieldsCountPatch, (byte)partCFieldsCount);
@@ -476,28 +500,12 @@ internal sealed class TldLogExporter : TldExporter, IDisposable
             var cur = categoryName[i];
             if ((cur >= 'a' && cur <= 'z') || (cur >= 'A' && cur <= 'Z') || (cur >= '0' && cur <= '9'))
             {
-                result[i] = cur;
+                result[validNameLength] = cur;
                 ++validNameLength;
             }
         }
 
         return result.Slice(0, validNameLength).ToString();
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static string ToInvariantString(Exception exception)
-    {
-        var originalUICulture = Thread.CurrentThread.CurrentUICulture;
-
-        try
-        {
-            Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
-            return exception.ToString();
-        }
-        finally
-        {
-            Thread.CurrentThread.CurrentUICulture = originalUICulture;
-        }
     }
 
     private static readonly Action<LogRecordScope, TldLogExporter> ProcessScopeForIndividualColumns = (scope, state) =>
@@ -542,7 +550,7 @@ internal sealed class TldLogExporter : TldExporter, IDisposable
         }
     };
 
-    private class SerializationDataForScopes
+    private sealed class SerializationDataForScopes
     {
         public byte HasEnvProperties;
         public byte PartCFieldsCountFromState;

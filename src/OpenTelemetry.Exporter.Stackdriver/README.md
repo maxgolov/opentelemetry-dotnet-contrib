@@ -1,7 +1,7 @@
 # Stackdriver Exporter for OpenTelemetry .NET
 
-[![NuGet](https://img.shields.io/nuget/v/OpenTelemetry.Exporter.Stackdriver.svg)](https://www.nuget.org/packages/OpenTelemetry.Exporter.Stackdriver)
-[![NuGet](https://img.shields.io/nuget/dt/OpenTelemetry.Exporter.Stackdriver.svg)](https://www.nuget.org/packages/OpenTelemetry.Exporter.Stackdriver)
+[![NuGet version badge](https://img.shields.io/nuget/v/OpenTelemetry.Exporter.Stackdriver)](https://www.nuget.org/packages/OpenTelemetry.Exporter.Stackdriver)
+[![NuGet download count badge](https://img.shields.io/nuget/dt/OpenTelemetry.Exporter.Stackdriver)](https://www.nuget.org/packages/OpenTelemetry.Exporter.Stackdriver)
 
 **NOTE: This exporter is not affiliated with or officially supported by
 Google.**
@@ -22,7 +22,7 @@ constructor for specifying path to the service account credential.
 ## Installation
 
 ```shell
-dotnet add package OpenTelemetry.Contrib.Instrumentation.Stackdriver
+dotnet add package OpenTelemetry.Exporter.Stackdriver --prerelease
 ```
 
 ## Traces
@@ -45,15 +45,6 @@ using (tracer.StartActiveSpan("/getuser", out TelemetrySpan span))
 
     Thread.Sleep(TimeSpan.FromMilliseconds(10));
 }
-```
-
-## Metrics
-
-```csharp
-var metricExporter = new StackdriverExporter(
-    "YOUR-GOOGLE-PROJECT-ID",
-    Stats.ViewManager);
-metricExporter.Start();
 ```
 
 ## References

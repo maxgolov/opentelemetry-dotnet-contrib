@@ -20,8 +20,10 @@ using System.Diagnostics;
 using System.Linq;
 using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.Core;
+using Amazon.Lambda.SNSEvents;
+using Amazon.Lambda.SQSEvents;
 using OpenTelemetry.Context.Propagation;
-using OpenTelemetry.Contrib.Extensions.AWSXRay.Trace;
+using OpenTelemetry.Extensions.AWS.Trace;
 
 namespace OpenTelemetry.Instrumentation.AWSLambda.Implementation;
 
@@ -63,20 +65,33 @@ internal static class AWSLambdaUtils
         return activityContext;
     }
 
-    internal static ActivityContext ExtractParentContext<TInput>(TInput input)
+    internal static (ActivityContext ParentContext, IEnumerable<ActivityLink>? Links) ExtractParentContext<TInput>(TInput input)
     {
-        PropagationContext propagationContext = default;
+        PropagationContext parentContext = default;
+        IEnumerable<ActivityLink>? links = null;
         switch (input)
         {
             case APIGatewayProxyRequest apiGatewayProxyRequest:
-                propagationContext = Propagators.DefaultTextMapPropagator.Extract(default, apiGatewayProxyRequest, GetHeaderValues);
+                parentContext = Propagators.DefaultTextMapPropagator.Extract(default, apiGatewayProxyRequest, GetHeaderValues);
                 break;
             case APIGatewayHttpApiV2ProxyRequest apiGatewayHttpApiV2ProxyRequest:
-                propagationContext = Propagators.DefaultTextMapPropagator.Extract(default, apiGatewayHttpApiV2ProxyRequest, GetHeaderValues);
+                parentContext = Propagators.DefaultTextMapPropagator.Extract(default, apiGatewayHttpApiV2ProxyRequest, GetHeaderValues);
+                break;
+            case SQSEvent sqsEvent:
+                (parentContext, links) = AWSMessagingUtils.ExtractParentContext(sqsEvent);
+                break;
+            case SQSEvent.SQSMessage sqsMessage:
+                parentContext = AWSMessagingUtils.ExtractParentContext(sqsMessage);
+                break;
+            case SNSEvent snsEvent:
+                parentContext = AWSMessagingUtils.ExtractParentContext(snsEvent);
+                break;
+            case SNSEvent.SNSRecord snsRecord:
+                parentContext = AWSMessagingUtils.ExtractParentContext(snsRecord);
                 break;
         }
 
-        return propagationContext.ActivityContext;
+        return (parentContext.ActivityContext, links);
     }
 
     internal static string GetCloudProvider()
@@ -89,7 +104,7 @@ internal static class AWSLambdaUtils
         return Environment.GetEnvironmentVariable(AWSRegion);
     }
 
-    internal static string GetFunctionName(ILambdaContext context = null)
+    internal static string GetFunctionName(ILambdaContext? context = null)
     {
         return context?.FunctionName ?? Environment.GetEnvironmentVariable(FunctionName);
     }
@@ -112,11 +127,6 @@ internal static class AWSLambdaUtils
             tags.Add(new(AWSLambdaSemanticConventions.AttributeFaasName, functionName));
         }
 
-        if (context == null)
-        {
-            return tags;
-        }
-
         if (context.AwsRequestId != null)
         {
             tags.Add(new(AWSLambdaSemanticConventions.AttributeFaasExecution, context.AwsRequestId));
@@ -137,7 +147,7 @@ internal static class AWSLambdaUtils
         return tags;
     }
 
-    internal static IEnumerable<string> GetHeaderValues(APIGatewayProxyRequest request, string name)
+    internal static IEnumerable<string>? GetHeaderValues(APIGatewayProxyRequest request, string name)
     {
         var multiValueHeader = request.MultiValueHeaders?.GetValueByKeyIgnoringCase(name);
         if (multiValueHeader != null)
@@ -150,7 +160,7 @@ internal static class AWSLambdaUtils
         return headerValue != null ? new[] { headerValue } : null;
     }
 
-    internal static IEnumerable<string> GetHeaderValues(APIGatewayHttpApiV2ProxyRequest request, string name)
+    internal static IEnumerable<string>? GetHeaderValues(APIGatewayHttpApiV2ProxyRequest request, string name)
     {
         var headerValue = GetHeaderValue(request, name);
 
@@ -158,10 +168,10 @@ internal static class AWSLambdaUtils
         return headerValue?.Split(',');
     }
 
-    private static string GetHeaderValue(APIGatewayHttpApiV2ProxyRequest request, string name) =>
+    private static string? GetHeaderValue(APIGatewayHttpApiV2ProxyRequest request, string name) =>
         request.Headers?.GetValueByKeyIgnoringCase(name);
 
-    private static string GetAccountId(string functionArn)
+    private static string? GetAccountId(string functionArn)
     {
         // The fifth item of function arn: https://github.com/open-telemetry/opentelemetry-specification/blob/86aeab1e0a7e6c67be09c7f15ff25063ee6d2b5c/specification/trace/semantic_conventions/instrumentation/aws-lambda.md#all-triggers
         // Function arn format - arn:aws:lambda:<region>:<account-id>:function:<function-name>

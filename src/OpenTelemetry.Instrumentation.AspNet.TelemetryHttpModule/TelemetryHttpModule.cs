@@ -18,6 +18,7 @@ using System;
 using System.Diagnostics;
 using System.Reflection;
 using System.Web;
+using OpenTelemetry.Internal;
 
 namespace OpenTelemetry.Instrumentation.AspNet;
 
@@ -57,13 +58,15 @@ public class TelemetryHttpModule : IHttpModule
     /// <inheritdoc />
     public void Init(HttpApplication context)
     {
+        Guard.ThrowIfNull(context);
+
         context.BeginRequest += this.Application_BeginRequest;
         context.EndRequest += this.Application_EndRequest;
         context.Error += this.Application_Error;
 
         if (HttpRuntime.UsingIntegratedPipeline && OnExecuteRequestStepMethodInfo != null)
         {
-            // OnExecuteRequestStep is availabile starting with 4.7.1
+            // OnExecuteRequestStep is available starting with 4.7.1
             try
             {
                 OnExecuteRequestStepMethodInfo.Invoke(context, new object[] { (Action<HttpContextBase, Action>)this.OnExecuteRequestStep });
@@ -95,7 +98,7 @@ public class TelemetryHttpModule : IHttpModule
 
         var context = ((HttpApplication)sender).Context;
 
-        if (!ActivityHelper.HasStarted(context, out Activity aspNetActivity))
+        if (!ActivityHelper.HasStarted(context, out Activity? aspNetActivity))
         {
             // Rewrite: In case of rewrite, a new request context is created, called the child request, and it goes through the entire IIS/ASP.NET integrated pipeline.
             // The child request can be mapped to any of the handlers configured in IIS, and it's execution is no different than it would be if it was received via the HTTP stack.
@@ -130,7 +133,7 @@ public class TelemetryHttpModule : IHttpModule
         var exception = context.Error;
         if (exception != null)
         {
-            if (!ActivityHelper.HasStarted(context, out Activity aspNetActivity))
+            if (!ActivityHelper.HasStarted(context, out Activity? aspNetActivity))
             {
                 aspNetActivity = ActivityHelper.StartAspNetActivity(Options.TextMapPropagator, context, Options.OnRequestStartedCallback);
             }

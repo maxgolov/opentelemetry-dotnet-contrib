@@ -16,8 +16,7 @@
 
 using System;
 using System.Diagnostics.Tracing;
-using System.Globalization;
-using System.Threading;
+using OpenTelemetry.Internal;
 
 namespace OpenTelemetry.Instrumentation.Wcf.Implementation;
 
@@ -31,7 +30,7 @@ internal sealed class WcfInstrumentationEventSource : EventSource
     {
         if (this.IsEnabled(EventLevel.Error, (EventKeywords)(-1)))
         {
-            this.RequestFilterException(ToInvariantString(ex));
+            this.RequestFilterException(ex.ToInvariantString());
         }
     }
 
@@ -52,7 +51,7 @@ internal sealed class WcfInstrumentationEventSource : EventSource
     {
         if (this.IsEnabled(EventLevel.Error, (EventKeywords)(-1)))
         {
-            this.EnrichmentException(ToInvariantString(exception));
+            this.EnrichmentException(exception.ToInvariantString());
         }
     }
 
@@ -62,23 +61,34 @@ internal sealed class WcfInstrumentationEventSource : EventSource
         this.WriteEvent(EventIds.EnrichmentException, exception);
     }
 
-    /// <summary>
-    /// Returns a culture-independent string representation of the given <paramref name="exception"/> object,
-    /// appropriate for diagnostics tracing.
-    /// </summary>
-    private static string ToInvariantString(Exception exception)
+    [NonEvent]
+    public void HttpServiceModelReflectionFailedToBind(Exception exception, System.Reflection.Assembly assembly)
     {
-        var originalUICulture = Thread.CurrentThread.CurrentUICulture;
+        if (this.IsEnabled(EventLevel.Verbose, (EventKeywords)(-1)))
+        {
+            this.HttpServiceModelReflectionFailedToBind(exception.ToInvariantString(), assembly?.FullName);
+        }
+    }
 
-        try
+    [Event(EventIds.HttpServiceModelReflectionFailedToBind, Message = "Failed to bind to System.ServiceModel.Http. Exception {0}. Assembly {1}.", Level = EventLevel.Verbose)]
+    public void HttpServiceModelReflectionFailedToBind(string exception, string assembly)
+    {
+        this.WriteEvent(EventIds.HttpServiceModelReflectionFailedToBind, exception, assembly);
+    }
+
+    [NonEvent]
+    public void AspNetReflectionFailedToBind(Exception exception)
+    {
+        if (this.IsEnabled(EventLevel.Verbose, (EventKeywords)(-1)))
         {
-            Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
-            return exception.ToString();
+            this.AspNetReflectionFailedToBind(exception.ToInvariantString());
         }
-        finally
-        {
-            Thread.CurrentThread.CurrentUICulture = originalUICulture;
-        }
+    }
+
+    [Event(EventIds.AspNetReflectionFailedToBind, Message = "Failed to bind to ASP.NET instrumentation. Exception {0}.", Level = EventLevel.Verbose)]
+    public void AspNetReflectionFailedToBind(string exception)
+    {
+        this.WriteEvent(EventIds.AspNetReflectionFailedToBind, exception);
     }
 
     private class EventIds
@@ -86,5 +96,7 @@ internal sealed class WcfInstrumentationEventSource : EventSource
         public const int RequestIsFilteredOut = 1;
         public const int RequestFilterException = 2;
         public const int EnrichmentException = 3;
+        public const int HttpServiceModelReflectionFailedToBind = 4;
+        public const int AspNetReflectionFailedToBind = 5;
     }
 }

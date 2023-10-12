@@ -18,12 +18,12 @@
 using System.ServiceModel;
 using System.ServiceModel.Description;
 using System.ServiceModel.Dispatcher;
+using OpenTelemetry.Internal;
 
 namespace OpenTelemetry.Instrumentation.Wcf;
 
 /// <summary>
-/// An <see cref="IServiceBehavior"/> implementation to add the
-/// <see cref="TelemetryDispatchMessageInspector"/> to service operations.
+/// An <see cref="IServiceBehavior"/> implementation to add the telemetry to service operations.
 /// </summary>
 public class TelemetryServiceBehavior : IServiceBehavior
 {
@@ -35,6 +35,8 @@ public class TelemetryServiceBehavior : IServiceBehavior
     /// <inheritdoc/>
     public void ApplyDispatchBehavior(ServiceDescription serviceDescription, ServiceHostBase serviceHostBase)
     {
+        Guard.ThrowIfNull(serviceHostBase);
+
         foreach (var channelDispatcherBase in serviceHostBase.ChannelDispatchers)
         {
             var channelDispatcher = (ChannelDispatcher)channelDispatcherBase;

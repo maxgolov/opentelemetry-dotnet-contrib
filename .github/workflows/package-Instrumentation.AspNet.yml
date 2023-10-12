@@ -1,5 +1,7 @@
 name: Pack OpenTelemetry.Instrumentation.AspNet
 
+# Note: This releases OpenTelemetry.Instrumentation.AspNet & OpenTelemetry.Instrumentation.AspNet.TelemetryHttpModule
+
 on:
   workflow_dispatch:
     inputs:
@@ -9,45 +11,14 @@ on:
         default: 'warning'
   push:
     tags:
-      - 'Instrumentation.AspNet-*'
+      - 'Instrumentation.AspNet-*' # trigger when we create a tag with prefix "Instrumentation.AspNet-"
 
 jobs:
-  build-test-pack:
-    runs-on: ${{ matrix.os }}
-    env:
-      PROJECT: OpenTelemetry.Instrumentation.AspNet
-
-    strategy:
-      matrix:
-        os: [windows-latest]
-
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0 # fetching all
-
-    - uses: actions/setup-dotnet@v3.0.3
-      with:
-        dotnet-version: '7.0.x'
-
-    - name: Install dependencies
-      run: dotnet restore src/${{env.PROJECT}}
-
-    - name: dotnet build ${{env.PROJECT}}
-      run: dotnet build src/${{env.PROJECT}} --configuration Release --no-restore -p:Deterministic=true
-
-    - name: dotnet test ${{env.PROJECT}}
-      run: dotnet test test/${{env.PROJECT}}.Tests
-
-    - name: dotnet pack ${{env.PROJECT}}
-      run: dotnet pack src/${{env.PROJECT}} --configuration Release --no-build
-
-    - name: Publish Artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{env.PROJECT}}-packages
-        path: '**/${{env.PROJECT}}/bin/**/*.*nupkg'
-
-    - name: Publish Nuget
-      run: |
-        nuget push **/${{env.PROJECT}}/bin/**/*.nupkg -Source https://api.nuget.org/v3/index.json -ApiKey ${{ secrets.NUGET_TOKEN }} -SymbolApiKey ${{ secrets.NUGET_TOKEN }}
+  call-build-test-pack:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/Component.Package.yml
+    with:
+      project-name: OpenTelemetry.Instrumentation.AspNet
+      release-name: 'OpenTelemetry Asp.Net Instrumentation Packages'
+    secrets: inherit

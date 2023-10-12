@@ -4,16 +4,14 @@
     <Description>dotnet process instrumentation for OpenTelemetry .NET</Description>
     <PackageTags>$(PackageTags);process</PackageTags>
     <MinVerTagPrefix>Instrumentation.Process-</MinVerTagPrefix>
-    <EnableAnalysis>true</EnableAnalysis>
-    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="OpenTelemetry.Api" Version="$(OpenTelemetryCoreLatestPrereleaseVersion)" />
+    <PackageReference Include="OpenTelemetry.Api" Version="$(OpenTelemetryCoreLatestVersion)" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="$(RepoRoot)\src\OpenTelemetry.Internal\Guard.cs" Link="Includes\Guard.cs" />
+    <Compile Include="$(RepoRoot)\src\Shared\Guard.cs" Link="Includes\Guard.cs" />
   </ItemGroup>
 
 </Project>

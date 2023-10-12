@@ -24,6 +24,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Trace;
 using Xunit;
 
@@ -85,7 +86,7 @@ public class GenevaTraceExporterTests
         // Supported types for PrepopulatedFields should not throw an exception
         var exception = Record.Exception(() =>
         {
-            new GenevaExporterOptions
+            _ = new GenevaExporterOptions
             {
                 ConnectionString = "EtwSession=OpenTelemetry",
                 PrepopulatedFields = new Dictionary<string, object>
@@ -174,13 +175,13 @@ public class GenevaTraceExporterTests
             var source = new ActivitySource(sourceName);
             using (var parent = source.StartActivity("HttpIn", ActivityKind.Server))
             {
-                parent?.SetTag("http.method", "GET");
-                parent?.SetTag("http.url", "https://localhost/wiki/Rabbit");
+                parent.SetTag("http.method", "GET");
+                parent.SetTag("http.url", "https://localhost/wiki/Rabbit");
                 using (var child = source.StartActivity("HttpOut", ActivityKind.Client))
                 {
-                    child?.SetTag("http.method", "GET");
-                    child?.SetTag("http.url", "https://www.wikipedia.org/wiki/Rabbit");
-                    child?.SetTag("http.status_code", 404);
+                    child.SetTag("http.method", "GET");
+                    child.SetTag("http.url", "https://www.wikipedia.org/wiki/Rabbit");
+                    child.SetTag("http.status_code", 404);
                 }
 
                 parent?.SetTag("http.status_code", 200);
@@ -359,7 +360,10 @@ public class GenevaTraceExporterTests
                         options.ConnectionString = "Endpoint=unix:" + path;
                     })
                     .Build();
-                Assert.True(false, "Should never reach here. GenevaTraceExporter should fail in constructor.");
+
+                // GenevaExporter would not throw if it was not able to connect to the UDS socket in ctor. It would
+                // keep attempting to connect to the socket when sending telemetry.
+                Assert.True(true, "GenevaTraceExporter should not fail in constructor.");
             }
             catch (SocketException ex)
             {
@@ -373,7 +377,7 @@ public class GenevaTraceExporterTests
                 {
                     ConnectionString = "Endpoint=unix:" + path,
                 });
-                Assert.True(false, "Should never reach here. GenevaTraceExporter should fail in constructor.");
+                Assert.True(true, "GenevaTraceExporter should not fail in constructor.");
             }
             catch (SocketException ex)
             {
@@ -509,6 +513,48 @@ public class GenevaTraceExporterTests
                 activity?.SetStatus(ActivityStatusCode.Ok);
             }
         }
+    }
+
+    [Fact]
+    public void AddGenevaTraceExporterNamedOptionsSupport()
+    {
+        string connectionString;
+        string connectionStringForNamedOptions;
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            connectionString = "EtwSession=OpenTelemetry";
+            connectionStringForNamedOptions = "EtwSession=OpenTelemetry-NamedOptions";
+        }
+        else
+        {
+            var path = GetRandomFilePath();
+            connectionString = "Endpoint=unix:" + path;
+            connectionStringForNamedOptions = "Endpoint=unix:" + path + "NamedOptions";
+        }
+
+        using var tracerProvider = Sdk.CreateTracerProviderBuilder()
+            .ConfigureServices(services =>
+            {
+                services.Configure<GenevaExporterOptions>(options =>
+                {
+                    options.ConnectionString = connectionString;
+                });
+                services.Configure<GenevaExporterOptions>("ExporterWithNamedOptions", options =>
+                {
+                    options.ConnectionString = connectionStringForNamedOptions;
+                });
+            })
+            .AddGenevaTraceExporter(options =>
+            {
+                // ConnectionString for the options is already set in `IServiceCollection Configure<TOptions>` calls above
+                Assert.Equal(connectionString, options.ConnectionString);
+            })
+            .AddGenevaTraceExporter("ExporterWithNamedOptions", options =>
+            {
+                // ConnectionString for the named options is already set in `IServiceCollection Configure<TOptions>` calls above
+                Assert.Equal(connectionStringForNamedOptions, options.ConnectionString);
+            })
+            .Build();
     }
 
     private static string GetRandomFilePath()
@@ -663,7 +709,7 @@ public class GenevaTraceExporterTests
             else
             {
                 // If CustomFields are proivded, dedicatedFields will be populated
-                if (exporterOptions.CustomFields == null || dedicatedFields.ContainsKey(tag.Key))
+                if (exporterOptions.CustomFields == null || dedicatedFields.TryGetValue(tag.Key, out _))
                 {
                     Assert.Equal(tag.Value.ToString(), mapping[tag.Key].ToString());
                 }

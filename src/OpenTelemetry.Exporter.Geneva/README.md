@@ -1,7 +1,7 @@
 # Geneva Exporter for OpenTelemetry .NET
 
-[![NuGet](https://img.shields.io/nuget/v/OpenTelemetry.Exporter.Geneva.svg)](https://www.nuget.org/packages/OpenTelemetry.Exporter.Geneva)
-[![NuGet](https://img.shields.io/nuget/dt/OpenTelemetry.Exporter.Geneva.svg)](https://www.nuget.org/packages/OpenTelemetry.Exporter.Geneva)
+[![NuGet version badge](https://img.shields.io/nuget/v/OpenTelemetry.Exporter.Geneva)](https://www.nuget.org/packages/OpenTelemetry.Exporter.Geneva)
+[![NuGet download count badge](https://img.shields.io/nuget/dt/OpenTelemetry.Exporter.Geneva)](https://www.nuget.org/packages/OpenTelemetry.Exporter.Geneva)
 
 The Geneva Exporter exports telemetry to
 [Event Tracing for Windows (ETW)](https://docs.microsoft.com/windows/win32/etw/about-event-tracing)
@@ -26,7 +26,7 @@ Install the latest stable version of
 [`Microsoft.Extensions.Logging`](https://www.nuget.org/packages/Microsoft.Extensions.Logging/)
 
 ```shell
-dotnet add package OpenTelemetry.Exporter.Geneva
+dotnet add package Microsoft.Extensions.Logging
 ```
 
 This snippet shows how to configure the Geneva Exporter for Logs
@@ -95,6 +95,9 @@ On Windows the connection string has the format `EtwSession={ETW session}`.
 
 A list of fields which should be stored as individual table columns.
 
+* If null, all fields will be stored as individual columns.
+* If non-null, only those fields named in the list will be stored as individual columns.
+
 #### `PrepopulatedFields` (optional)
 
 This is a collection of fields that will be applied to all the Logs and Traces
@@ -110,7 +113,8 @@ The default table name used for Traces is `Span`. To change the table name for
 Traces add an entry with the key `Span` and set the value to the desired custom
 table name.
 
-**Note:** Only a single table name is supported for Traces.
+> **Note**
+> Only a single table name is supported for Traces.
 
 ##### Log table name mappings
 

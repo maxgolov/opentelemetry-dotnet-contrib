@@ -27,7 +27,7 @@ public class ClientTracingInterceptorOptions
     /// <summary>
     /// Gets or sets a value indicating whether or not to record individual message events.
     /// </summary>
-    public bool RecordMessageEvents { get; set; } = false;
+    public bool RecordMessageEvents { get; set; }
 
     /// <summary>
     /// Gets the propagator.
@@ -35,7 +35,7 @@ public class ClientTracingInterceptorOptions
     public TextMapPropagator Propagator { get; internal set; } = Propagators.DefaultTextMapPropagator;
 
     /// <summary>
-    /// Gets or sets a custom identfier used during unit testing.
+    /// Gets or sets a custom identifier used during unit testing.
     /// </summary>
     internal Guid ActivityIdentifierValue { get; set; }
 }

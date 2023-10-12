@@ -16,22 +16,39 @@
 
 using System;
 using System.Diagnostics.Tracing;
-using System.Globalization;
-using System.Threading;
+using OpenTelemetry.Internal;
 
 namespace OpenTelemetry.Instrumentation.EntityFrameworkCore.Implementation;
 
 [EventSource(Name = "OpenTelemetry-Instrumentation-EntityFrameworkCore")]
 internal class EntityFrameworkInstrumentationEventSource : EventSource
 {
-    public static EntityFrameworkInstrumentationEventSource Log = new EntityFrameworkInstrumentationEventSource();
+    public static EntityFrameworkInstrumentationEventSource Log = new();
 
     [NonEvent]
     public void UnknownErrorProcessingEvent(string handlerName, string eventName, Exception ex)
     {
         if (this.IsEnabled(EventLevel.Error, (EventKeywords)(-1)))
         {
-            this.UnknownErrorProcessingEvent(handlerName, eventName, ToInvariantString(ex));
+            this.UnknownErrorProcessingEvent(handlerName, eventName, ex.ToInvariantString());
+        }
+    }
+
+    [NonEvent]
+    public void EnrichmentException(string eventName, Exception ex)
+    {
+        if (this.IsEnabled(EventLevel.Error, EventKeywords.All))
+        {
+            this.EnrichmentException(eventName, ex.ToInvariantString());
+        }
+    }
+
+    [NonEvent]
+    public void CommandFilterException(Exception ex)
+    {
+        if (this.IsEnabled(EventLevel.Error, EventKeywords.All))
+        {
+            this.CommandFilterException(ex.ToInvariantString());
         }
     }
 
@@ -59,22 +76,24 @@ internal class EntityFrameworkInstrumentationEventSource : EventSource
         this.WriteEvent(4, handlerName, eventName);
     }
 
-    /// <summary>
-    /// Returns a culture-independent string representation of the given <paramref name="exception"/> object,
-    /// appropriate for diagnostics tracing.
-    /// </summary>
-    private static string ToInvariantString(Exception exception)
+    [Event(5, Message = "Enrichment threw exception. Exception {0}.", Level = EventLevel.Error)]
+    public void EnrichmentException(string eventName, string exception)
     {
-        var originalUICulture = Thread.CurrentThread.CurrentUICulture;
+        if (this.IsEnabled(EventLevel.Error, EventKeywords.All))
+        {
+            this.WriteEvent(5, eventName, exception);
+        }
+    }
 
-        try
-        {
-            Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
-            return exception.ToString();
-        }
-        finally
-        {
-            Thread.CurrentThread.CurrentUICulture = originalUICulture;
-        }
+    [Event(6, Message = "Command is filtered out. Activity {0}", Level = EventLevel.Verbose)]
+    public void CommandIsFilteredOut(string activityName)
+    {
+        this.WriteEvent(6, activityName);
+    }
+
+    [Event(7, Message = "Command filter threw exception. Command will not be collected. Exception {0}.", Level = EventLevel.Error)]
+    public void CommandFilterException(string exception)
+    {
+        this.WriteEvent(7, exception);
     }
 }

@@ -1,24 +1,17 @@
-name: Integration Tests
+name: Integration Build OpenTelemetry.Instrumentation.StackExchangeRedis
 
 on:
-  push:
-    branches: [ 'main*', 'instrumentation*', 'exporter*', 'extensions*' ]
-    paths-ignore:
-    - '**.md'
-  pull_request:
-    branches: [ 'main*', 'instrumentation*', 'exporter*', 'extensions*' ]
-    paths-ignore:
-    - '**.md'
+  workflow_call:
 
 jobs:
-  redis-test:
+  redis-integration-test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        version: [netcoreapp3.1,net6.0,net7.0]
+        version: [net6.0,net7.0]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Run redis docker-compose.integration
         run: docker-compose --file=test/OpenTelemetry.Instrumentation.StackExchangeRedis.Tests/docker-compose.yml --file=build/docker-compose.${{ matrix.version }}.yml --project-directory=. up --exit-code-from=tests --build

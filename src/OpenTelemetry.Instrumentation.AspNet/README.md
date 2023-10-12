@@ -1,14 +1,15 @@
 # ASP.NET Instrumentation for OpenTelemetry
 
-[![NuGet](https://img.shields.io/nuget/v/OpenTelemetry.Instrumentation.AspNet.svg)](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.AspNet)
-[![NuGet](https://img.shields.io/nuget/dt/OpenTelemetry.Instrumentation.AspNet.svg)](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.AspNet)
+[![NuGet version badge](https://img.shields.io/nuget/v/OpenTelemetry.Instrumentation.AspNet)](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.AspNet)
+[![NuGet download count badge](https://img.shields.io/nuget/dt/OpenTelemetry.Instrumentation.AspNet)](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.AspNet)
 
 This is an [Instrumentation
 Library](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/glossary.md#instrumentation-library),
 which instruments [ASP.NET](https://docs.microsoft.com/aspnet/overview) and
 collect metrics and traces about incoming web requests.
 
-**Note: This component is based on the OpenTelemetry semantic conventions for
+> **Note**
+> This component is based on the OpenTelemetry semantic conventions for
 [metrics](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions)
 and
 [traces](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/trace/semantic_conventions).
@@ -18,7 +19,7 @@ and hence, this package is a [pre-release](https://github.com/open-telemetry/ope
 Until a [stable
 version](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/telemetry-stability.md)
 is released, there can be breaking changes. You can track the progress from
-[milestones](https://github.com/open-telemetry/opentelemetry-dotnet/milestone/23).**
+[milestones](https://github.com/open-telemetry/opentelemetry-dotnet/milestone/23).
 
 ## Steps to enable OpenTelemetry.Instrumentation.AspNet
 
@@ -55,9 +56,15 @@ following shows changes required to your `Web.config` when using IIS web server.
 ### Step 3: Enable ASP.NET Instrumentation at application startup
 
 ASP.NET instrumentation must be enabled at application startup. This is
-typically done in the `Global.asax.cs` as shown below. This example also sets up
-the OpenTelemetry Jaeger exporter, which requires adding the package
-[`OpenTelemetry.Exporter.Jaeger`](https://github.com/open-telemetry/opentelemetry-dotnet/blob/main/src/OpenTelemetry.Exporter.Jaeger/README.md)
+typically done in the `Global.asax.cs`.
+
+#### Traces
+
+The following example demonstrates adding ASP.NET instrumentation with the
+extension method `.AddAspNetInstrumentation()` on `TracerProviderBuilder` to
+an application. This example also sets up
+the OTLP (OpenTelemetry Protocol) exporter, which requires adding the package
+[`OpenTelemetry.Exporter.OpenTelemetryProtocol`](https://github.com/open-telemetry/opentelemetry-dotnet/blob/main/src/OpenTelemetry.Exporter.OpenTelemetryProtocol/README.md)
 to the application.
 
 ```csharp
@@ -71,7 +78,7 @@ public class WebApiApplication : HttpApplication
     {
         this.tracerProvider = Sdk.CreateTracerProviderBuilder()
             .AddAspNetInstrumentation()
-            .AddJaegerExporter()
+            .AddOtlpExporter()
             .Build();
     }
     protected void Application_End()
@@ -80,6 +87,46 @@ public class WebApiApplication : HttpApplication
     }
 }
 ```
+
+#### Metrics
+
+The following example demonstrates adding ASP.NET instrumentation with the
+extension method `.AddAspNetInstrumentation()` on `MeterProviderBuilder` to
+an application. This example also sets up
+the OTLP (OpenTelemetry Protocol) exporter, which requires adding the package
+[`OpenTelemetry.Exporter.OpenTelemetryProtocol`](https://github.com/open-telemetry/opentelemetry-dotnet/blob/main/src/OpenTelemetry.Exporter.OpenTelemetryProtocol/README.md)
+to the application.
+
+```csharp
+using OpenTelemetry;
+using OpenTelemetry.Metrics;
+
+public class WebApiApplication : HttpApplication
+{
+    private MeterProvider meterProvider;
+    protected void Application_Start()
+    {
+        this.meterProvider = Sdk.CreateMeterProviderBuilder()
+            .AddAspNetInstrumentation()
+            .AddOtlpExporter()
+            .Build();
+    }
+    protected void Application_End()
+    {
+        this.meterProvider?.Dispose();
+    }
+}
+```
+
+#### List of metrics produced
+
+The instrumentation is implemented based on [metrics semantic
+conventions](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/semantic_conventions/http-metrics.md#metric-httpserverduration).
+Currently, the instrumentation supports the following metric.
+
+| Name  | Instrument Type | Unit | Description |
+|-------|-----------------|------|-------------|
+| `http.server.duration` | Histogram | `ms` | Measures the duration of inbound HTTP requests. |
 
 ## Advanced configuration
 

@@ -1,7 +1,7 @@
 # QuartzNET Instrumentation for OpenTelemetry .NET
 
-[![NuGet](https://img.shields.io/nuget/v/OpenTelemetry.Instrumentation.Quartz.svg)](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz)
-[![NuGet](https://img.shields.io/nuget/dt/OpenTelemetry.Instrumentation.Quartz.svg)](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz)
+[![NuGet version badge](https://img.shields.io/nuget/v/OpenTelemetry.Instrumentation.Quartz)](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz)
+[![NuGet download count badge](https://img.shields.io/nuget/dt/OpenTelemetry.Instrumentation.Quartz)](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz)
 
 Automatically instruments the Quartz jobs from
 [Quartz](https://www.nuget.org/packages/Quartz/).
@@ -9,7 +9,7 @@ Automatically instruments the Quartz jobs from
 ## Supported Frameworks
 
 QuartzNET Instrumentation is only supported when using .NET Framework >=
-`net472` and netstandard >= `netstandard2.0`. Quartz`net461` support for
+`net472` and .NET Standard >= `netstandard2.0`. Quartz`net461` support for
 activity sources has been removed, more information can be found
 [here](https://www.quartz-scheduler.net/2021/04/07/quartznet-3-3-released/).
 
@@ -42,11 +42,11 @@ public void ConfigureServices(IServiceCollection services)
 }
 
 // Add OpenTelemetry and Quartz instrumentation
-services.AddOpenTelemetryTracing(x =>
+services.AddOpenTelemetry().WithTracing(x =>
 {
     x.AddQuartzInstrumentation();
-    x.UseJaegerExporter(config => {
-      // Configure Jaeger
+    x.AddOtlpExporter(config => {
+      // Configure OTLP
     });
 });
 ```

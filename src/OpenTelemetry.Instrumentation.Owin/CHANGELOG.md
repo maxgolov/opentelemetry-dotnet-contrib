@@ -2,8 +2,12 @@
 
 ## Unreleased
 
-* Updated OpenTelemetry SDK to 1.3.2
-  ([#917](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/917))
+* Updated OpenTelemetry SDK to 1.6.0
+  ([#1344](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1344))
+* Removes `AddOwinInstrumentation` method with default configure parameter.
+  ([#929](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/929))
+* Adds HTTP server metrics via `AddOwinInstrumentation` extension method on `MeterProviderBuilder`
+  ([#1335](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1335))
 
 ## 1.0.0-rc.3
 

@@ -21,6 +21,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Internal;
 using OpenTelemetry.Logs;
 
 namespace OpenTelemetry.Exporter.Geneva;
@@ -35,6 +36,7 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
         "Trace", "Debug", "Information", "Warning", "Error", "Critical", "None",
     };
 
+    private readonly bool m_shouldExportEventName;
     private readonly TableNameSerializer m_tableNameSerializer;
     private readonly Dictionary<string, object> m_customFields;
     private readonly Dictionary<string, object> m_prepopulatedFields;
@@ -51,6 +53,8 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
     {
         this.m_tableNameSerializer = new(options, defaultTableName: "Log");
         this.m_exportExceptionStack = options.ExceptionStackExportMode;
+
+        this.m_shouldExportEventName = (options.EventNameExportMode & EventNameExportMode.ExportAsPartAName) != 0;
 
         var connectionStringBuilder = new ConnectionStringBuilder(options.ConnectionString);
         switch (connectionStringBuilder.Protocol)
@@ -129,11 +133,11 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
 
     internal int SerializeLogRecord(LogRecord logRecord)
     {
+        // `LogRecord.State` and `LogRecord.StateValues` were marked Obsolete in https://github.com/open-telemetry/opentelemetry-dotnet/pull/4334
+#pragma warning disable 0618
         IReadOnlyList<KeyValuePair<string, object>> listKvp;
-        if (logRecord.State == null)
+        if (logRecord.StateValues != null)
         {
-            // When State is null, OTel SDK guarantees StateValues is populated
-            // TODO: Debug.Assert?
             listKvp = logRecord.StateValues;
         }
         else
@@ -141,6 +145,7 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
             // Attempt to see if State could be ROL_KVP.
             listKvp = logRecord.State as IReadOnlyList<KeyValuePair<string, object>>;
         }
+#pragma warning restore 0618
 
         var buffer = m_buffer.Value;
         if (buffer == null)
@@ -196,9 +201,22 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
         }
 
         // Part A - core envelope
-        cursor = AddPartAField(buffer, cursor, Schema.V40.PartA.Name, eventName);
 
-        cntFields += 1;
+        var eventId = logRecord.EventId;
+        bool hasEventId = eventId != default;
+
+        if (hasEventId && this.m_shouldExportEventName && !string.IsNullOrWhiteSpace(eventId.Name))
+        {
+            // Export `eventId.Name` as the value for `env_name`
+            cursor = AddPartAField(buffer, cursor, Schema.V40.PartA.Name, eventId.Name);
+            cntFields += 1;
+        }
+        else
+        {
+            // Export the table name as the value for `env_name`
+            cursor = AddPartAField(buffer, cursor, Schema.V40.PartA.Name, eventName);
+            cntFields += 1;
+        }
 
         cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, "env_time");
         cursor = MessagePackSerializer.SerializeUtcDateTime(buffer, cursor, timestamp); // LogRecord.Timestamp should already be converted to UTC format in the SDK
@@ -222,7 +240,11 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
         }
 
         // Part B
+
+        // `LogRecord.LogLevel` was marked Obsolete in https://github.com/open-telemetry/opentelemetry-dotnet/pull/4568
+#pragma warning disable 0618
         var logLevel = logRecord.LogLevel;
+#pragma warning restore 0618
 
         cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, "severityText");
         cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, logLevels[(int)logLevel]);
@@ -232,12 +254,9 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
         cursor = MessagePackSerializer.SerializeUInt8(buffer, cursor, GetSeverityNumber(logLevel));
         cntFields += 1;
 
-        cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, "name");
-        cursor = MessagePackSerializer.SerializeUnicodeString(buffer, cursor, categoryName);
-        cntFields += 1;
-
         bool hasEnvProperties = false;
         bool bodyPopulated = false;
+        bool namePopulated = false;
         for (int i = 0; i < listKvp?.Count; i++)
         {
             var entry = listKvp[i];
@@ -258,6 +277,17 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
                 if (entry.Value != null)
                 {
                     // null is not supported.
+                    if (string.Equals(entry.Key, "name", StringComparison.Ordinal))
+                    {
+                        if (!(entry.Value is string))
+                        {
+                            // name must be string according to Part B in Common Schema. Skip serializing this field otherwise
+                            continue;
+                        }
+
+                        namePopulated = true;
+                    }
+
                     cursor = MessagePackSerializer.SerializeUnicodeString(buffer, cursor, entry.Key);
                     cursor = MessagePackSerializer.Serialize(buffer, cursor, entry.Value);
                     cntFields += 1;
@@ -268,6 +298,13 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
                 hasEnvProperties = true;
                 continue;
             }
+        }
+
+        if (!namePopulated)
+        {
+            cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, "name");
+            cursor = MessagePackSerializer.SerializeUnicodeString(buffer, cursor, categoryName);
+            cntFields += 1;
         }
 
         if (!bodyPopulated && logRecord.FormattedMessage != null)
@@ -337,8 +374,7 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
             MessagePackSerializer.WriteUInt16(buffer, idxMapSizeEnvPropertiesPatch, envPropertiesCount);
         }
 
-        var eventId = logRecord.EventId;
-        if (eventId != default)
+        if (hasEventId)
         {
             cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, "eventId");
             cursor = MessagePackSerializer.SerializeInt32(buffer, cursor, eventId.Id);
@@ -365,7 +401,7 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
                 // before running out of limit instead of STRING_SIZE_LIMIT_CHAR_COUNT.
                 // 2. Trim smarter, by trimming the middle of stack, an
                 // keep top and bottom.
-                var exceptionStack = ToInvariantString(logRecord.Exception);
+                var exceptionStack = logRecord.Exception.ToInvariantString();
                 cursor = MessagePackSerializer.SerializeAsciiString(buffer, cursor, "env_ex_stack");
                 cursor = MessagePackSerializer.SerializeUnicodeString(buffer, cursor, exceptionStack);
                 cntFields += 1;
@@ -405,21 +441,6 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
             // should we throw here then?
             default:
                 return 1;
-        }
-    }
-
-    private static string ToInvariantString(Exception exception)
-    {
-        var originalUICulture = Thread.CurrentThread.CurrentUICulture;
-
-        try
-        {
-            Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
-            return exception.ToString();
-        }
-        finally
-        {
-            Thread.CurrentThread.CurrentUICulture = originalUICulture;
         }
     }
 
@@ -495,7 +516,7 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
         }
     };
 
-    private class SerializationDataForScopes
+    private sealed class SerializationDataForScopes
     {
         public bool HasEnvProperties;
         public ushort EnvPropertiesCount;

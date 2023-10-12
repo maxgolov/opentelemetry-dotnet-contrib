@@ -21,8 +21,8 @@ namespace OpenTelemetry.Exporter.Stackdriver.Tests;
 
 public class TestActivityProcessor : BaseProcessor<Activity>, IDisposable
 {
-    public Action<Activity> StartAction;
-    public Action<Activity> EndAction;
+    public Action<Activity>? StartAction;
+    public Action<Activity>? EndAction;
 
     public TestActivityProcessor()
     {
@@ -34,20 +34,20 @@ public class TestActivityProcessor : BaseProcessor<Activity>, IDisposable
         this.EndAction = onEnd;
     }
 
-    public bool ShutdownCalled { get; private set; } = false;
+    public bool ShutdownCalled { get; private set; }
 
-    public bool ForceFlushCalled { get; private set; } = false;
+    public bool ForceFlushCalled { get; private set; }
 
-    public bool DisposedCalled { get; private set; } = false;
+    public bool DisposedCalled { get; private set; }
 
-    public override void OnStart(Activity activity)
+    public override void OnStart(Activity data)
     {
-        this.StartAction?.Invoke(activity);
+        this.StartAction?.Invoke(data);
     }
 
-    public override void OnEnd(Activity activity)
+    public override void OnEnd(Activity data)
     {
-        this.EndAction?.Invoke(activity);
+        this.EndAction?.Invoke(data);
     }
 
     protected override bool OnShutdown(int timeoutMilliseconds)

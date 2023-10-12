@@ -17,7 +17,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-#if NETCOREAPP3_1_OR_GREATER
+#if NET6_0_OR_GREATER
 using System.Threading;
 using System.Threading.Tasks;
 #endif
@@ -94,6 +94,9 @@ public class RuntimeMetricsTests
         {
             var gcHeapFragmentationSizeMetric = exportedItems.FirstOrDefault(i => i.Name == "process.runtime.dotnet.gc.heap.fragmentation.size");
             Assert.NotNull(gcHeapFragmentationSizeMetric);
+
+            var gcDurationMetric = exportedItems.FirstOrDefault(i => i.Name == "process.runtime.dotnet.gc.duration");
+            Assert.NotNull(gcDurationMetric);
         }
 #endif
     }

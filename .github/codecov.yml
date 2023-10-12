@@ -24,5 +24,52 @@ comment:
 
 ignore:
   - "**.md"
-  - "src/OpenTelemetry.Contrib.Shared"  # copied from main OTel project and has code coverage there
-  - "test/**/*"
+  - "src/Shared" # copied from main OTel project and has code coverage there
+  - "test"
+  - "examples"
+  - "build"
+  - ".github"
+  - ".vscode"
+
+flags:
+  unittests-Solution:
+    carryforward: true
+    paths:
+      - src
+
+  unittests-Exporter.Geneva:
+    carryforward: true
+    paths:
+      - src/OpenTelemetry.Exporter.Geneva
+
+  unittests-Exporter.OneCollector:
+    carryforward: true
+    paths:
+      - src/OpenTelemetry.Exporter.OneCollector
+
+  unittests-Instrumentation.AspNet:
+    carryforward: true
+    paths:
+      - src/OpenTelemetry.Instrumentation.AspNet
+      - src/OpenTelemetry.Instrumentation.AspNet.TelemetryHttpModule
+
+  unittests-Instrumentation.Owin:
+    carryforward: true
+    paths:
+      - src/OpenTelemetry.Instrumentation.Owin
+
+  unittests-Instrumentation.Process:
+    carryforward: true
+    paths:
+      - src/OpenTelemetry.Instrumentation.Process
+
+  unittests-Instrumentation.StackExchangeRedis:
+    carryforward: true
+    paths:
+      - src/OpenTelemetry.Instrumentation.StackExchangeRedis
+
+  unittests-Instrumentation.Wcf:
+    carryforward: true
+    paths:
+      - src/OpenTelemetry.Instrumentation.Wcf
+

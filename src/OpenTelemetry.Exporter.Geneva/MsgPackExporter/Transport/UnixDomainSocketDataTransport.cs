@@ -20,7 +20,7 @@ using System.Net.Sockets;
 
 namespace OpenTelemetry.Exporter.Geneva;
 
-internal class UnixDomainSocketDataTransport : IDataTransport, IDisposable
+internal sealed class UnixDomainSocketDataTransport : IDataTransport, IDisposable
 {
     public const int DefaultTimeoutMilliseconds = 15000;
     private readonly EndPoint unixEndpoint;
@@ -43,7 +43,14 @@ internal class UnixDomainSocketDataTransport : IDataTransport, IDisposable
     {
         this.unixEndpoint = new UnixDomainSocketEndPoint(unixDomainSocketPath);
         this.timeoutMilliseconds = timeoutMilliseconds;
-        this.Connect();
+        try
+        {
+            this.Connect();
+        }
+        catch (Exception ex)
+        {
+            ExporterEventSource.Log.ExporterException("UDS unavailable at startup.", ex);
+        }
     }
 
     public bool IsEnabled()

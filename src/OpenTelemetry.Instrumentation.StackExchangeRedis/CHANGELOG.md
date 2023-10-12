@@ -2,8 +2,50 @@
 
 ## Unreleased
 
-* Update OTel API version to `1.3.2`.
-  ([#917](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/917))
+* Update OTel API version to `1.6.0`.
+  ([#1344](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1344))
+
+## 1.0.0-rc9.10
+
+Released 2023-Jun-09
+
+* Update OTel API version to `1.5.0`.
+  ([#1220](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1220))
+
+## 1.0.0-rc9.9
+
+Released 2023-May-25
+
+* Added a dependency on `OpenTelemetry.Api.ProviderBuilderExtensions` and
+  updated `TracerProviderBuilder.AddRedisInstrumentation` to support named
+  options.
+  ([#1183](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1183))
+
+* **\*\*BREAKING CHANGE\*\*** Renamed the
+  `StackExchangeRedisCallsInstrumentationOptions` class to
+  `StackExchangeRedisInstrumentationOptions`.
+  ([#1193](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1193))
+
+* Added a new extension `TracerProviderBuilder.ConfigureRedisInstrumentation`
+  which can be used to obtain the `StackExchangeRedisInstrumentation` instance
+  in order to dynamically add connections for instrumentation after the
+  `TracerProvider` has been created.
+  ([#1193](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1193))
+
+* When using named options the name will now be applied to the background thread
+  created for each instrumented connection in the format
+  `OpenTelemetry.Redis{OPTIONS_NAME_HERE}`.
+  ([#1205](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1205))
+
+## 1.0.0-rc9.8
+
+Released 2023-Feb-27
+
+* Update OTel API version to `1.4.0`.
+  ([#1038](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1038))
+* Added a direct dependency on System.Reflection.Emit.Lightweight which
+  previously came transitively through the OpenTelemetry API.
+  ([#1038](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1038))
 
 ## 1.0.0-rc9.7
 

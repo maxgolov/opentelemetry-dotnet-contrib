@@ -14,10 +14,9 @@
 // limitations under the License.
 // </copyright>
 
-#nullable enable
-
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using Google.Cloud.Trace.V2;
 using Google.Protobuf.WellKnownTypes;
@@ -27,7 +26,7 @@ namespace OpenTelemetry.Exporter.Stackdriver.Implementation;
 
 internal static class ActivityExtensions
 {
-    private static Dictionary<string, string> labelsToReplace = new Dictionary<string, string>
+    private static readonly Dictionary<string, string> LabelsToReplace = new Dictionary<string, string>
     {
         { "component", "/component" },
         { "http.method", "/http/method" },
@@ -94,7 +93,7 @@ internal static class ActivityExtensions
 
         // StackDriver uses different labels that are used to categorize spans
         // replace attribute keys with StackDriver version
-        foreach (var entry in labelsToReplace)
+        foreach (var entry in LabelsToReplace)
         {
             if (span.Attributes.AttributeMap.TryGetValue(entry.Key, out var attrValue))
             {
@@ -135,25 +134,25 @@ internal static class ActivityExtensions
         switch (av)
         {
             case string s:
-                return new AttributeValue()
+                return new AttributeValue
                 {
-                    StringValue = new TruncatableString() { Value = s },
+                    StringValue = new TruncatableString { Value = s },
                 };
             case bool b:
-                return new AttributeValue() { BoolValue = b };
+                return new AttributeValue { BoolValue = b };
             case long l:
-                return new AttributeValue() { IntValue = l };
+                return new AttributeValue { IntValue = l };
             case double d:
-                return new AttributeValue()
+                return new AttributeValue
                 {
-                    StringValue = new TruncatableString() { Value = d.ToString() },
+                    StringValue = new TruncatableString { Value = d.ToString(CultureInfo.InvariantCulture) },
                 };
             case null:
                 return new AttributeValue();
             default:
-                return new AttributeValue()
+                return new AttributeValue
                 {
-                    StringValue = new TruncatableString() { Value = av.ToString() },
+                    StringValue = new TruncatableString { Value = av.ToString() },
                 };
         }
     }

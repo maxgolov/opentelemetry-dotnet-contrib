@@ -2,8 +2,18 @@
 
 ## Unreleased
 
-* Update OpenTelemetry to 1.4.0-rc.2
-  ([#880](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/880))
+* Add LogToActivityEventConversionOptions.Filter callback
+  ([#1059](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1059))
+
+* Update OpenTelemetry SDK version to `1.6.0`.
+  ([#1344](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1344))
+
+## 1.0.0-beta.4
+
+Released 2023-Feb-27
+
+* Update OpenTelemetry to 1.4.0
+  ([#1038](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/1038))
 
 ## 1.0.0-beta.3
 
