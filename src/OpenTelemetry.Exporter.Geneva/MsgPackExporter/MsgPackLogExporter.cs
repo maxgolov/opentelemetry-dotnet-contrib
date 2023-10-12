@@ -64,11 +64,6 @@ internal sealed class MsgPackLogExporter : MsgPackExporter, IDisposable
                 this.m_dataTransport = new EtwDataTransport(connectionStringBuilder.EtwSession);
                 break;
             case TransportProtocol.Unix:
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    throw new ArgumentException("Unix domain socket should not be used on Windows.");
-                }
-
                 var unixDomainSocketPath = connectionStringBuilder.ParseUnixDomainSocketPath();
                 this.m_dataTransport = new UnixDomainSocketDataTransport(unixDomainSocketPath);
                 break;

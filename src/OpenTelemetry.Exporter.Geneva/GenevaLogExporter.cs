@@ -53,10 +53,6 @@ public class GenevaLogExporter : GenevaBaseExporter<LogRecord>
                 break;
 
             case TransportProtocol.Unix:
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    throw new ArgumentException("Unix domain socket should not be used on Windows.");
-                }
 
                 useMsgPackExporter = true;
                 break;

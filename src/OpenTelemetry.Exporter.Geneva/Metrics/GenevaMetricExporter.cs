@@ -78,11 +78,6 @@ public class GenevaMetricExporter : BaseExporter<Metric>
         switch (connectionStringBuilder.Protocol)
         {
             case TransportProtocol.Unix:
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    throw new ArgumentException("Unix domain socket should not be used on Windows.");
-                }
-
                 var unixDomainSocketPath = connectionStringBuilder.ParseUnixDomainSocketPath();
                 this.metricDataTransport = new MetricUnixDataTransport(unixDomainSocketPath);
                 break;
